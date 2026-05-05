@@ -1,0 +1,53 @@
+# Built application files
+*.apk
+*.aar
+
+# Gradle
+.gradle/
+build/
+
+# Local configuration file
+local.properties
+
+# Log Files
+*.log
+
+# Android Studio
+.navigation/
+captures/
+*.iml
+.idea/
+
+# Keystore files
+*.jks
+*.keystore
+
+# External native build
+.externalNativeBuild
+.cxx/
+
+# Version control
+vcs.xml
+
+# lint
+lint/intermediates/
+lint/generated/
+lint/outputs/
+
+# Kotlin
+.kotlin/
+
+# MacOS
+.DS_Store
+
+# Memory dump files
+*.hprof
+
+# Stacktrace
+hs_err_pid*
+
+# Replay files
+replay_*
+
+# Debug artifacts
+.java_pid*

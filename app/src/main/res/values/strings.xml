@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Gallery Max</string>
+    <string name="tab_photos">Fotos</string>
+    <string name="tab_albums">Álbuns</string>
+    <string name="filter_all">Todas</string>
+    <string name="filter_fav">Favoritas</string>
+    <string name="filter_video">Vídeos</string>
+    <string name="filter_screenshot">Capturas</string>
+    <string name="section_memories">Memórias</string>
+    <string name="section_people">Pessoas &amp; Pets</string>
+    <string name="section_albums">Álbuns</string>
+    <string name="see_all">Ver tudo</string>
+    <string name="today">Hoje</string>
+    <string name="yesterday">Ontem</string>
+    <string name="add_person">Adicionar pessoa</string>
+    <string name="no_media">Nenhuma mídia encontrada</string>
+    <string name="permission_required">Permissão necessária</string>
+    <string name="grant_permission">Conceder permissão</string>
+</resources>
