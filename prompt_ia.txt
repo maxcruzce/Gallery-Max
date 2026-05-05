@@ -1,0 +1,131 @@
+### Contexto:
+Estou desenvolvendo um aplicativo de galeria Android que utiliza o ML Kit (Google) para detecção facial e um modelo MobileFaceNet (TFLite) para extrair embeddings (vetores numéricos) dos rostos e agrupá-los por pessoas.
+
+### O Problema:
+O reconhecimento não está agrupando corretamente rostos da mesma pessoa. O sistema acaba criando várias entradas de "Pessoas" diferentes para a mesma face, ou não consegue associar uma nova detecção a uma pessoa já existente, mesmo quando são parecidas.
+
+### Arquivos do Projeto:
+Abaixo estão os dois arquivos principais responsáveis por essa lógica:
+1. `VisualAnalysisRepository.kt`: Faz a detecção com ML Kit, recorta o rosto, rotaciona e extrai o embedding via TFLite.
+2. `FaceRepository.kt`: Gerencia o armazenamento, o cálculo de similaridade de cosseno e a lógica de decisão para criar uma nova pessoa ou mesclar com uma existente.
+
+### Objetivo:
+Analise o código abaixo e sugira melhorias na lógica de:
+- Extração de Embedding: Verifique se o pré-processamento do bitmap (redimensionamento, normalização de pixels) está correto para o MobileFaceNet.
+- Matching de Rostos: Melhore a função `findBestMatch` e o valor de `SIMILARITY_THRESHOLD`. Atualmente uso 0.50f, mas talvez a comparação com a média (`averageEmbedding`) ou faces individuais precise de um peso diferente.
+- Auto-Merge: Melhore a função `autoMergePeople` para ser mais eficiente na limpeza de duplicatas.
+
+---
+
+### Código 1: VisualAnalysisRepository.kt (Extração)
+```kotlin
+private fun extractEmbedding(bitmap: Bitmap, bounds: Rect, rotation: Int = 0): FloatArray? {
+    val interpreter = faceNetInterpreter ?: return null
+    try {
+        val safeLeft = bounds.left.coerceIn(0, bitmap.width - 1)
+        val safeTop = bounds.top.coerceIn(0, bitmap.height - 1)
+        val safeRight = bounds.right.coerceIn(safeLeft + 1, bitmap.width)
+        val safeBottom = bounds.bottom.coerceIn(safeTop + 1, bitmap.height)
+
+        var faceBitmap = Bitmap.createBitmap(bitmap, safeLeft, safeTop, safeRight - safeLeft, safeBottom - safeTop)
+
+        if (rotation != 0) {
+            val matrix = android.graphics.Matrix().apply { postRotate(rotation.toFloat()) }
+            val rotatedFace = Bitmap.createBitmap(faceBitmap, 0, 0, faceBitmap.width, faceBitmap.height, matrix, true)
+            faceBitmap.recycle()
+            faceBitmap = rotatedFace
+        }
+
+        val resizedBitmap = Bitmap.createScaledBitmap(faceBitmap, 112, 112, true)
+        val inputBuffer = ByteBuffer.allocateDirect(1 * 112 * 112 * 3 * 4).apply { order(ByteOrder.nativeOrder()) }
+
+        val pixels = IntArray(112 * 112)
+        resizedBitmap.getPixels(pixels, 0, 112, 0, 0, 112, 112)
+
+        for (pixel in pixels) {
+            inputBuffer.putFloat(((pixel shr 16 and 0xFF) - 127.5f) / 128f)
+            inputBuffer.putFloat(((pixel shr 8 and 0xFF) - 127.5f) / 128f)
+            inputBuffer.putFloat(((pixel and 0xFF) - 127.5f) / 128f)
+        }
+
+        val outputDetails = interpreter.getOutputTensor(0).shape()
+        val outputSize = outputDetails[1]
+        val output = Array(1) { FloatArray(outputSize) }
+        interpreter.run(inputBuffer, output)
+
+        return output[0]
+    } catch (e: Exception) {
+        return null
+    }
+}
+```
+
+### Código 2: FaceRepository.kt (Agrupamento)
+```kotlin
+class FaceRepository(context: Context) {
+    private val SIMILARITY_THRESHOLD = 0.50f // Limite atual
+
+    fun addFace(mediaId: Long, uri: Uri, bounds: Rect, embedding: FloatArray?) {
+        val faceId = "face_${mediaId}_${bounds.left}_${bounds.top}"
+        if (faceMap.containsKey(faceId)) return
+
+        if (embedding != null) {
+            val normalizedEmbedding = normalize(embedding)
+            val match = findBestMatch(normalizedEmbedding)
+            if (match != null) {
+                val (matchedPerson, _) = match
+                if (!matchedPerson.faceIds.contains(faceId)) {
+                    matchedPerson.faceIds.add(faceId)
+                    updateAverageEmbedding(matchedPerson)
+                }
+                save()
+                return
+            }
+        }
+
+        // Se não houver match, cria nova pessoa
+        val personId = "person_${faceId}"
+        personMap[personId] = Person(personId, null, mutableListOf(faceId), embedding)
+        save()
+    }
+
+    private fun findBestMatch(newEmbedding: FloatArray): Pair<Person, Float>? {
+        var bestMatch: Person? = null
+        var highestSimilarity = 0f
+
+        for (person in personMap.values) {
+            val avgSimilarity = person.averageEmbedding?.let { calculateCosineSimilarity(newEmbedding, it) } ?: 0f
+
+            var maxIndividualSimilarity = 0f
+            val facesToCompare = person.faceIds.takeLast(5)
+            for (faceId in facesToCompare) {
+                faceMap[faceId]?.embedding?.let { faceEmb ->
+                    val sim = calculateCosineSimilarity(newEmbedding, faceEmb)
+                    if (sim > maxIndividualSimilarity) maxIndividualSimilarity = sim
+                }
+            }
+
+            val finalSimilarity = maxOf(avgSimilarity, maxIndividualSimilarity)
+
+            if (finalSimilarity > SIMILARITY_THRESHOLD && finalSimilarity > highestSimilarity) {
+                highestSimilarity = finalSimilarity
+                bestMatch = person
+            }
+        }
+        return bestMatch?.let { it to highestSimilarity }
+    }
+
+    private fun calculateCosineSimilarity(vec1: FloatArray, vec2: FloatArray): Float {
+        var dotProduct = 0f
+        for (i in vec1.indices) dotProduct += vec1[i] * vec2[i]
+        return dotProduct
+    }
+}
+```
+
+### Parte 2: Observações Adicionais
+- A função `updateAverageEmbedding` não está detalhada no snippet acima, mas suspeito que ela possa estar acumulando erro ao recalcular a média dos embeddings.
+- A função `autoMergePeople` está ausente no snippet e precisa ser implementada corretamente para limpar duplicatas de forma eficiente.
+
+### Pergunta final para a IA:
+Como posso ajustar esse código para que o reconhecimento seja mais preciso e as pessoas sejam agrupadas corretamente sem criar tantas duplicatas? O limiar de 0.50 está correto para MobileFaceNet? Devo usar distância Euclidiana em vez de Cosseno? Por favor, forneça o código corrigido.

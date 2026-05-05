@@ -1,0 +1,25 @@
+package com.hypergallery.ui.theme
+
+import androidx.compose.ui.graphics.Color
+
+val Primary = Color(0xFF0058bc)
+val PrimaryContainer = Color(0xFF0070eb)
+val OnPrimary = Color(0xFFffffff)
+val Surface = Color(0xFFf9f9fe)
+val SurfaceContainer = Color(0xFFededf2)
+val SurfaceContainerHigh = Color(0xFFe8e8ed)
+val SurfaceContainerHighest = Color(0xFFe2e2e7)
+val OnSurface = Color(0xFF1a1c1f)
+val OnSurfaceVariant = Color(0xFF414755)
+val OutlineVariant = Color(0xFFc1c6d7)
+val Background = Color(0xFFf2f2f7)
+val ChipActiveBg = Color(0xFF1a1c1f)
+val ChipText = Color(0xFFffffff)
+val ChipInactive = Color(0xFFe2e2e7)
+val ChipInactiveText = Color(0xFF414755)
+val CardBg = Color(0xFFffffff)
+val SectionTitle = Color(0xFF1a1c1f)
+val CountText = Color(0xFF717786)
+val NavBg = Color(0xD3ffffff)
+val HeaderBg = Color(0xEBf9f9fe)
+val FavHeart = Color(0xFFe3174a)
